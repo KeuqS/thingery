@@ -57,6 +57,28 @@ No Docker? Point `DATABASE_URL` at any Postgres with the `vector` extension.
 
 Omit the `Authorization` header for buyer-only (public search) usage.
 
+### Run locally over stdio (`npx`)
+
+Self-host without any web server — the package runs as a local stdio MCP server against your
+own Postgres, spawnable by Claude Desktop and similar clients:
+
+```json
+{
+  "mcpServers": {
+    "thingery": {
+      "command": "npx",
+      "args": ["-y", "thingery"],
+      "env": {
+        "DATABASE_URL": "postgres://thingery:thingery@localhost:5432/thingery",
+        "THINGERY_API_KEY": "thg_YOUR_KEY"
+      }
+    }
+  }
+}
+```
+
+`THINGERY_API_KEY` is optional; without it the server runs read-only (search + get).
+
 ### Try it with curl
 
 ```bash

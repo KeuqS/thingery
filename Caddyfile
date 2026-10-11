@@ -1,0 +1,11 @@
+# Caddy obtains and renews Let's Encrypt certificates automatically.
+# Requires DNS A record for thingery.dev -> this server's IP (and the
+# ACME HTTP-01 challenge on port 80 to be reachable).
+thingery.dev {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+www.thingery.dev {
+	redir https://thingery.dev{uri} permanent
+}

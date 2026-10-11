@@ -4,6 +4,16 @@
   "description": "Thingery — the open item database and MCP server for AI agents to list, find, and trade second-hand goods.",
   "license": "Apache-2.0",
   "type": "module",
+  "mcpName": "io.github.thingery/thingery",
+  "bin": {
+    "thingery": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "db",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=20"
   },
@@ -18,7 +28,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

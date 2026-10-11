@@ -14,15 +14,19 @@ export async function createSeller(displayName: string, apiKey: string): Promise
   return rows[0];
 }
 
-/** Resolves the caller's seller from an Authorization: Bearer thg_... header. */
-export async function sellerFromRequest(req: Request): Promise<SellerRow | null> {
-  const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) return null;
-  const key = header.slice("Bearer ".length).trim();
+/** Resolves a seller by API key. */
+export async function sellerFromApiKey(key: string): Promise<SellerRow | null> {
   if (!key.startsWith("thg_")) return null;
   const { rows } = await pool.query<SellerRow>(
     `SELECT id, api_key, display_name FROM sellers WHERE api_key = $1`,
     [key],
   );
   return rows[0] ?? null;
+}
+
+/** Resolves the caller's seller from an Authorization: Bearer thg_... header. */
+export async function sellerFromRequest(req: Request): Promise<SellerRow | null> {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return null;
+  return sellerFromApiKey(header.slice("Bearer ".length).trim());
 }

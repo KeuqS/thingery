@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.thingery/thingery",
+  "description": "Open item database and MCP server for AI agents to list, find, and trade second-hand goods.",
+  "repository": {
+    "url": "https://github.com/thingery/thingery",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "thingery",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+# Production stack: Postgres (pgvector) + Thingery app + Caddy (automatic HTTPS).
+# See docs/deploy-vps.md for the full runbook.
+#   cp .env.example .env  (edit values)  then:  docker compose -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-thingery}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-thingery}
+    volumes:
+      - thingery_pgdata:/var/lib/postgresql/data
+    # Never exposed publicly; reachable only on the compose network as "db".
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-thingery}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-thingery}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-thingery}
+      PORT: 3000
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://thingery.dev}
+      EMBED_API_URL: ${EMBED_API_URL:-https://api.openai.com/v1/embeddings}
+      EMBED_API_KEY: ${EMBED_API_KEY:-}
+      EMBED_MODEL: ${EMBED_MODEL:-text-embedding-3-small}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Internal only; Caddy terminates TLS and proxies to it.
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  thingery_pgdata:
+  caddy_data:
+  caddy_config:
