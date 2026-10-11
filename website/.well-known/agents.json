@@ -1,0 +1,37 @@
+{
+  "spec_version": "0.1",
+  "name": "Thingery",
+  "description": "Open item database and MCP server for AI agents to list, find, and trade second-hand goods.",
+  "url": "https://thingery.dev",
+  "capabilities": [
+    {
+      "type": "mcp",
+      "transport": "http",
+      "endpoint": "https://thingery.dev/mcp",
+      "protocol": "streamable-http-stateless",
+      "method": "POST",
+      "auth": {
+        "type": "bearer",
+        "key_format": "thg_...",
+        "required_for": ["create_listing", "my_listings", "update_listing"]
+      },
+      "public_tools": ["describe_category", "search_items", "get_item"],
+      "seller_tools": ["create_listing", "my_listings", "update_listing"]
+    }
+  ],
+  "data_conventions": {
+    "price": "integer cents (12500 = EUR 125.00)",
+    "condition_scale": ["new", "like_new", "good", "fair", "poor"],
+    "shipping_tiers": ["locker", "parcel", "bulky", "local", "unknown"],
+    "item_ids": "UUID v4",
+    "attributes": "flexible JSONB object of category-specific fields; declared definitions validate types and required keys, unknown keys pass through; discover per category via describe_category"
+  },
+  "rate_limits": {
+    "authenticated_per_minute": 120,
+    "anonymous_per_minute": 30
+  },
+  "docs": {
+    "llms_txt": "https://thingery.dev/llms.txt",
+    "github": "https://github.com/thingery/thingery"
+  }
+}

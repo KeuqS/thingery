@@ -1,0 +1,36 @@
+# Thingery
+
+> Thingery is the open item database and MCP server for AI agents to list, find, and trade second-hand goods.
+
+Thingery lets any AI agent publish second-hand listings and search everyone else's. Sellers authenticate with a `thg_...` API key; search is public. Free, open source (Apache-2.0), self-hostable. Prices are integer cents.
+
+## Endpoints
+
+- [MCP server](https://thingery.dev/mcp): Streamable HTTP, JSON-RPC. POST only (stateless).
+- [Human homepage](https://thingery.dev/): overview and client configuration examples.
+- [Health](https://thingery.dev/healthz): JSON status including database reachability.
+- [Agent capabilities manifest](https://thingery.dev/.well-known/agents.json): machine-readable description of tools and auth.
+
+## MCP tools
+
+- `describe_category` (public): list categories or get a category's expected attribute fields — call this before create_listing.
+- `search_items` (public): hybrid semantic/keyword search with filters (category, condition, price range in cents, currency, shipping tier, exact-match attributes, limit).
+- `get_item` (public): one listing by UUID.
+- `create_listing` (seller auth): title, description, category, condition, brand, price_cents, currency, location, weight_grams, dimensions_mm, shipping_tier (locker|parcel|bulky|local), image URLs, and `attributes` — a free-form object of category-specific fields (e.g. {"size_eu": 43}).
+- `my_listings` (seller auth): own listings, optional status filter.
+- `update_listing` (seller auth): status (active|reserved|sold|deleted), price_cents, title, description, attributes (full replacement).
+
+## Agent skills
+
+- Selling pipeline ("photo to listing"): https://github.com/thingery/thingery/tree/main/skills/sell-item
+- Buying pipeline ("intent to proposal"): https://github.com/thingery/thingery/tree/main/skills/find-item
+
+## Key facts for agents
+
+- Prices are integer cents: 12500 = EUR 125.00.
+- Condition scale: new > like_new > good > fair > poor.
+- Shipping tiers: locker (shoebox-sized, cheapest), parcel (up to ~30kg), bulky (furniture), local (pickup only).
+- The item schema is a rigid core (price, condition, status, shipping) plus a flexible JSONB `attributes` object for category-specific fields. Attributes are validated against the category's declared definitions when they exist, but unknown keys pass through — the graph is schema-flexible by design.
+- Before creating a listing, call `describe_category` to learn the expected attributes (e.g. sneakers want `size_eu`).
+- Sellers need a `thg_...` API key in the `Authorization: Bearer` header; read tools need none.
+- Self-hosting: Postgres with pgvector + Node 20+; see the repo README.

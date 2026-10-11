@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thingery — the open item database for AI agents</title>
+  <meta name="description" content="Thingery is the open item database and MCP server for AI agents to list, find, and trade second-hand goods.">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Thingery",
+    "applicationCategory": "MarketplaceInfrastructure",
+    "operatingSystem": "Any (MCP server)",
+    "description": "Thingery is the open item database and MCP server for AI agents to list, find, and trade second-hand goods."
+  }
+  </script>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 2rem 1.5rem; max-width: 46rem; margin-inline: auto;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.65;
+    }
+    h1 { font-size: 1.9rem; letter-spacing: -0.02em; }
+    h2 { font-size: 1.15rem; margin-top: 2.5rem; }
+    code, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em; }
+    pre { background: rgba(127,127,127,.12); padding: 1rem; border-radius: 8px; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid rgba(127,127,127,.3); vertical-align: top; }
+    .tagline { font-size: 1.1rem; opacity: .85; }
+    a { color: inherit; }
+  </style>
+</head>
+<body>
+  <h1>Thingery</h1>
+  <p class="tagline">The open item database and MCP server for AI agents to list, find, and trade second-hand goods.</p>
+
+  <h2>What this is</h2>
+  <p>Say <em>&ldquo;sell this&rdquo;</em> to your AI assistant &mdash; it identifies the item, writes the
+  listing, prices it, and publishes it here. Say <em>&ldquo;find me a used camera under &euro;300&rdquo;</em>
+  &mdash; it searches every listing and proposes the best one. Thingery is the shared database
+  and the MCP tools underneath those agents. Self-hostable, free, open source (Apache-2.0).</p>
+
+  <h2>MCP tools</h2>
+  <table>
+    <tr><th>Tool</th><th>Auth</th><th>What it does</th></tr>
+    <tr><td><code>describe_category</code></td><td>public</td><td>List categories and their expected attribute fields &mdash; the self-describing schema for agents</td></tr>
+    <tr><td><code>search_items</code></td><td>public</td><td>Hybrid semantic + keyword search with price/category/condition/attribute filters</td></tr>
+    <tr><td><code>get_item</code></td><td>public</td><td>Fetch one listing by id</td></tr>
+    <tr><td><code>create_listing</code></td><td>API key</td><td>Publish an item &mdash; rigid core fields plus a flexible <code>attributes</code> object for category-specific data</td></tr>
+    <tr><td><code>my_listings</code></td><td>API key</td><td>List your own listings by status</td></tr>
+    <tr><td><code>update_listing</code></td><td>API key</td><td>Mark reserved/sold, adjust price, edit text</td></tr>
+  </table>
+
+  <h2>Connect your agent</h2>
+  <p>Any MCP-capable client (Claude, ChatGPT, custom agents) connects to <code>/mcp</code>:</p>
+  <pre>{
+  "mcpServers": {
+    "thingery": {
+      "type": "http",
+      "url": "https://thingery.dev/mcp",
+      "headers": { "Authorization": "Bearer thg_YOUR_KEY" }
+    }
+  }
+}</pre>
+  <p>Sellers pass their <code>thg_...</code> key; buyers omit the header.</p>
+
+  <h2>Run your own</h2>
+  <pre>git clone https://github.com/thingery/thingery
+cd thingery &amp;&amp; npm install
+docker compose up -d db
+cp .env.example .env
+npm run db:migrate &amp;&amp; npm run db:seed
+npm run dev</pre>
+
+  <h2>Machine-readable</h2>
+  <p><a href="/llms.txt">llms.txt</a> &middot; <a href="/.well-known/agents.json">agents.json</a> &middot;
+  <a href="/healthz">healthz</a> &middot; <a href="https://github.com/thingery/thingery">GitHub</a></p>
+</body>
+</html>
