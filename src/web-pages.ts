@@ -27,7 +27,20 @@ export function safeJsonLd(value: unknown): string {
   return JSON.stringify(value).replaceAll("<", "\\u003c");
 }
 
-function page(title: string, description: string, body: string): string {
+type PageMetadata = {
+  url?: string;
+  image?: string;
+};
+
+function page(title: string, description: string, body: string, metadata: PageMetadata = {}): string {
+  const twitterCard = metadata.image ? "summary_large_image" : "summary";
+  const ogUrl = metadata.url
+    ? `\n  <meta property="og:url" content="${escapeHtml(metadata.url)}">`
+    : "";
+  const ogImage = metadata.image
+    ? `\n  <meta property="og:image" content="${escapeHtml(metadata.image)}">`
+    : "";
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -35,6 +48,10 @@ function page(title: string, description: string, body: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(description)}">
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:site_name" content="Thingery">${ogUrl}${ogImage}
+  <meta name="twitter:card" content="${twitterCard}">
   <style>
     :root { color-scheme: light dark; }
     * { box-sizing: border-box; }
@@ -77,6 +94,9 @@ export async function itemPage(req: Request, res: Response): Promise<void> {
 
   const viewer = await sellerFromSession(req).catch(() => null);
   const isOwner = Boolean(viewer && viewer.id === item.seller_id);
+  const origin = `${req.protocol}://${req.get("host") ?? "localhost"}`;
+  const itemUrl = `${origin}/item/${encodeURIComponent(item.id)}`;
+  const itemImage = item.images[0] ? new URL(item.images[0], origin).toString() : undefined;
 
   const sold = item.status !== "active";
   const attributesHtml = Object.keys(item.attributes ?? {}).length
@@ -137,7 +157,12 @@ export async function itemPage(req: Request, res: Response): Promise<void> {
   To buy, message the seller through the assistant that showed you this listing.</p>
   <script type="application/ld+json">${safeJsonLd(jsonLd)}</script>`;
 
-  res.send(page(item.title, `${money(item.price_cents, item.currency)} — used, ${item.condition}`, body));
+  res.send(
+    page(item.title, `${money(item.price_cents, item.currency)} — used, ${item.condition}`, body, {
+      url: itemUrl,
+      image: itemImage,
+    }),
+  );
 }
 
 export async function browsePage(req: Request, res: Response): Promise<void> {
