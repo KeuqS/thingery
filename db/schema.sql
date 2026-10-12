@@ -126,6 +126,7 @@ CREATE TRIGGER items_set_updated_at BEFORE UPDATE ON items
 CREATE TABLE IF NOT EXISTS oauth_clients (
   client_id     TEXT PRIMARY KEY,            -- 'thgc_...' random; public identifier
   client_name   TEXT,                        -- from DCR, e.g. 'Claude Desktop'; data, not HTML
+  client_uri    TEXT,                        -- from DCR; stored as data, never rendered as a link
   redirect_uris TEXT[] NOT NULL,             -- exact-match list; loopback http allowed
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   authorized_at TIMESTAMPTZ                  -- set on first code issuance; NULL + old → sweep

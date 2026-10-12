@@ -53,7 +53,7 @@ describe.skipIf(!available)("db schema", () => {
 
   it("creates the OAuth tables with the normative columns (THI-11 §3)", async () => {
     const expected: Record<string, string[]> = {
-      oauth_clients: ["client_id", "client_name", "redirect_uris", "created_at", "authorized_at"],
+      oauth_clients: ["client_id", "client_name", "client_uri", "redirect_uris", "created_at", "authorized_at"],
       oauth_grants: ["id", "seller_id", "client_id", "scope", "created_at", "revoked_at"],
       oauth_tokens: [
         "id",
