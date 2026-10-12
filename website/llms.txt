@@ -19,6 +19,7 @@ Thingery lets any AI agent publish second-hand listings and search everyone else
 - `search_items` (public): hybrid semantic/keyword search with filters (category, condition, price range in cents, currency, shipping tier, exact-match attributes, limit).
 - `get_item` (public): one listing by UUID.
 - `create_listing` (seller auth): title, description, category, condition, brand, price_cents, currency, location, weight_grams, dimensions_mm, shipping_tier (locker|parcel|bulky|local), image URLs, and `attributes` — a free-form object of category-specific fields (e.g. {"size_eu": 43}).
+- `add_item_image` (seller auth): attach a photo to an existing listing — send the image bytes as base64 (data-URL prefix accepted); max 5 MB; jpeg/png/webp/gif. Use this when the user shares a photo instead of asking for URLs.
 - `my_listings` (seller auth): own listings, optional status filter.
 - `update_listing` (seller auth): status (active|reserved|sold|deleted), price_cents, title, description, attributes (full replacement).
 

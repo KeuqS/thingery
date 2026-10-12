@@ -10,6 +10,7 @@ import { RateLimiter } from "./rate-limit.js";
 import { pool } from "./db.js";
 import { api } from "./routes.js";
 import { browsePage, itemPage } from "./web-pages.js";
+import { uploadsDir } from "./images.js";
 import { VERSION } from "./version.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -91,6 +92,9 @@ function runHttp(): void {
 
   app.get("/item/:id", itemPage);
   app.get("/browse", browsePage);
+
+  // Uploaded item images (files under UPLOADS_DIR, served at /img/...)
+  app.use("/img", express.static(uploadsDir(), { maxAge: "30d", immutable: true }));
 
   // Static website + discovery files (llms.txt, robots.txt, .well-known/)
   const websiteDir = path.resolve(__dirname, "..", "website");

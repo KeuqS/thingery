@@ -3,6 +3,7 @@
 
 import type { Request, Response } from "express";
 import { getItem, searchItems } from "./items.js";
+import { sellerFromSession } from "./auth.js";
 import type { ItemRow } from "./db.js";
 
 const escapeHtml = (value: unknown): string =>
@@ -39,6 +40,9 @@ function page(title: string, description: string, body: string): string {
     .card { border: 1px solid rgba(127,127,127,.3); border-radius: 12px; padding: 1rem 1.2rem; margin: .8rem 0; }
     .card a { text-decoration: none; }
     .card .p { font-weight: 650; }
+    .gallery img { max-width: 100%; border-radius: 12px; display: block; margin: .5rem 0; border: 1px solid var(--line, rgba(127,127,127,.3)); }
+    .upload { border: 1px dashed rgba(127,127,127,.5); border-radius: 12px; padding: .8rem 1rem; margin: 1rem 0; font-size: .95rem; }
+    .upload button { margin-left: .5rem; }
     form { display: flex; gap: .5rem; margin: 1rem 0; }
     input { flex: 1; padding: .6rem .8rem; font: inherit; border-radius: 10px;
       border: 1px solid rgba(127,127,127,.5); background: transparent; color: inherit; }
@@ -60,11 +64,47 @@ export async function itemPage(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const viewer = await sellerFromSession(req).catch(() => null);
+  const isOwner = Boolean(viewer && viewer.id === item.seller_id);
+
   const sold = item.status !== "active";
   const attributesHtml = Object.keys(item.attributes ?? {}).length
     ? `<p class="meta">${Object.entries(item.attributes)
         .map(([k, v]) => `<span class="badge">${escapeHtml(k.replaceAll("_", " "))}: ${escapeHtml(v)}</span>`)
         .join(" ")}</p>`
+    : "";
+
+  const imagesHtml = item.images.length
+    ? `<div class="gallery">${item.images
+        .map((src) => `<img src="${escapeHtml(src)}" alt="${escapeHtml(item.title)}" loading="lazy">`)
+        .join("\n")}</div>`
+    : `<p class="meta">No photos yet.</p>`;
+
+  const uploadHtml = isOwner
+    ? `<div class="upload">
+        <strong>Add photos</strong> (jpg/png/webp/gif, up to 5 MB each)
+        <form id="upload-form">
+          <input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/gif" required>
+          <button type="submit">Upload</button>
+        </form>
+        <span class="meta" id="upload-status"></span>
+      </div>
+      <script>
+        document.getElementById("upload-form").onsubmit = async (e) => {
+          e.preventDefault();
+          const file = document.getElementById("file").files[0];
+          const status = document.getElementById("upload-status");
+          if (!file) return;
+          status.textContent = "Uploading…";
+          const res = await fetch("/api/items/${escapeHtml(item.id)}/images", {
+            method: "POST",
+            headers: { "content-type": file.type },
+            body: file,
+          });
+          if (res.ok) location.reload();
+          else status.textContent = "Failed: " + ((await res.json()).error || res.status);
+        };
+      </script>`
     : "";
 
   const jsonLd = {
@@ -86,6 +126,8 @@ export async function itemPage(req: Request, res: Response): Promise<void> {
   <p class="meta"><a href="/browse">← Browse</a> · <a href="/">Thingery</a></p>
   <h1>${escapeHtml(item.title)}</h1>
   <p class="price ${sold ? "sold" : ""}">${escapeHtml(money(item.price_cents, item.currency))}${sold ? ` · ${escapeHtml(item.status)}` : ""}</p>
+  ${imagesHtml}
+  ${uploadHtml}
   <p class="meta">
     <span class="badge">condition: ${escapeHtml(item.condition.replaceAll("_", " "))}</span>
     <span class="badge">category: ${escapeHtml(item.category)}</span>

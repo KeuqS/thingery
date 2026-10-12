@@ -3,6 +3,7 @@ import type { ItemRow, SellerRow } from "./db.js";
 import { CONDITIONS, SHIPPING_TIERS, STATUSES } from "./db.js";
 import { getCategory, getItem, createItem, listCategories, myItems, searchItems, updateItem } from "./items.js";
 import { validateAttributes, type Attributes } from "./attributes.js";
+import { addItemImageBase64 } from "./images.js";
 
 export interface ToolContext {
   seller: SellerRow | null;
@@ -247,6 +248,33 @@ export function registerTools(server: { registerTool: Function }, ctx: ToolConte
       });
       if (!item) return err("Item not found or not owned by this seller", "not_found");
       return ok({ updated: true, item: itemToPublic(item) });
+    },
+  );
+
+  server.registerTool(
+    "add_item_image",
+    {
+      description:
+        "Attach a photo to one of your listings. Pass the image as base64 (a data-URL prefix is " +
+        "accepted — e.g. what you get when the user shares a photo in this conversation). " +
+        "Max 5 MB; jpeg, png, webp or gif. Requires API key.",
+      inputSchema: {
+        item_id: z.string().uuid(),
+        image_base64: z.string().min(50).describe("Base64-encoded image bytes (data-URL prefix allowed)"),
+        media_type: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]),
+      },
+    },
+    async (args: Record<string, unknown>) => {
+      const seller = requireSeller();
+      if (!seller) return err("Missing or invalid Authorization: Bearer thg_... API key", "unauthorized");
+      const result = await addItemImageBase64(
+        seller.id,
+        args.item_id as string,
+        args.image_base64 as string,
+        args.media_type as string,
+      );
+      if ("error" in result) return err(result.error, "invalid_image");
+      return ok({ added: true, image_url: `${publicBaseUrl()}${result.url}` });
     },
   );
 }

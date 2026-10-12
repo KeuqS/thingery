@@ -13,6 +13,7 @@ import {
   SESSION_COOKIE,
 } from "./auth.js";
 import { chatTurn, chatConfigured, type ChatMessage } from "./chat.js";
+import { addItemImage, MAX_IMAGE_BYTES } from "./images.js";
 import { RateLimiter } from "./rate-limit.js";
 
 const authAttemptLimiter = new RateLimiter(10, 60 * 60_000); // 10 signups/logins per IP per hour
@@ -84,6 +85,31 @@ api.get("/me", async (req: Request, res: Response) => {
     return;
   }
   res.json({ seller: { name: seller.display_name, api_key: seller.api_key } });
+});
+
+// --- item images (browser upload) -------------------------------------------
+
+// Raw body for image uploads: express.raw with the image content types only.
+const imageUpload = express.raw({ type: ["image/jpeg", "image/png", "image/webp", "image/gif"], limit: MAX_IMAGE_BYTES + 64 * 1024 });
+
+api.post("/items/:id/images", imageUpload, async (req: Request, res: Response) => {
+  const seller = await sellerFromSession(req).catch(() => null);
+  if (!seller) {
+    res.status(401).json({ error: "Log in to add photos." });
+    return;
+  }
+  const mediaType = (req.headers["content-type"] ?? "").split(";")[0].trim();
+  const data = req.body as Buffer;
+  if (!data || data.length === 0) {
+    res.status(400).json({ error: "Empty upload — send the image bytes as the request body." });
+    return;
+  }
+  const result = await addItemImage(seller.id, req.params.id, data, mediaType);
+  if ("error" in result) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+  res.json({ url: result.url });
 });
 
 // --- chat -------------------------------------------------------------------

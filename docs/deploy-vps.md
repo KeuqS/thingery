@@ -72,9 +72,10 @@ The Item Graph is the asset. Local dumps at minimum, object storage better:
 sudo crontab -e
 # add:
 0 3 * * * docker exec $(docker ps -qf name=db) pg_dump -U thingery thingery | gzip > /var/backups/thingery-$(date +\%F).sql.gz && find /var/backups -name 'thingery-*.sql.gz' -mtime +14 -delete
+0 4 * * * docker cp $(docker ps -qf name=app):/app/uploads /var/backups/img.tmp && tar czf /var/backups/thingery-images-$(date +\%F).tar.gz -C /var/backups/img.tmp . && rm -rf /var/backups/img.tmp && find /var/backups -name 'thingery-images-*.tar.gz' -mtime +14 -delete
 ```
 
-Test a restore once (into a scratch database) before you trust it.
+The second job backs up uploaded item images. Test a restore once (into a scratch database / empty uploads dir) before you trust it.
 
 ## 5. Updating
 

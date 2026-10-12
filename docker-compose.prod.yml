@@ -32,6 +32,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      # Uploaded item images survive redeploys
+      - uploads:/app/uploads
     # Internal only; Caddy terminates TLS and proxies to it.
     expose:
       - "3000"
@@ -53,3 +56,4 @@ volumes:
   thingery_pgdata:
   caddy_data:
   caddy_config:
+  uploads:

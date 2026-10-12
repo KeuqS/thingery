@@ -3,6 +3,7 @@ dist/
 .env
 *.log
 .DS_Store
+uploads/
 
 # secrets — never commit, never paste anywhere
 secret/

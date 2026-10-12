@@ -13,10 +13,10 @@
       "auth": {
         "type": "bearer",
         "key_format": "thg_...",
-        "required_for": ["create_listing", "my_listings", "update_listing"]
+        "required_for": ["create_listing", "add_item_image", "my_listings", "update_listing"]
       },
       "public_tools": ["describe_category", "search_items", "get_item"],
-      "seller_tools": ["create_listing", "my_listings", "update_listing"]
+      "seller_tools": ["create_listing", "add_item_image", "my_listings", "update_listing"]
     }
   ],
   "data_conventions": {
