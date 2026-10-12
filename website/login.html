@@ -42,9 +42,31 @@
   <section id="done" hidden>
     <h2>You're in</h2>
     <p id="welcome"></p>
-    <p>Your seller API key (for MCP clients — keep it private):</p>
+
+    <h2 style="font-size:1.05rem">Connect your AI assistant <small>(uses your assistant's own quota)</small></h2>
+    <ol style="padding-left:1.2rem">
+      <li style="margin-bottom:.7rem"><strong>Claude Desktop / Claude Code</strong> — paste this into the MCP config
+        (<code>Settings → Developer → Edit Config</code>), then restart the app:
+        <div class="key" id="mcp-config"></div>
+        <button type="button" id="copy-config">Copy config</button>
+      </li>
+      <li style="margin-bottom:.7rem"><strong>Claude web / ChatGPT with connectors</strong> — add a custom connector with
+        the URL <span class="key" style="display:inline;padding:.1rem .4rem" id="mcp-url"></span>
+        <button type="button" id="copy-url" style="margin-left:.3rem">Copy URL</button>
+        and set the header <code>Authorization: Bearer &lt;your key&gt;</code>.
+      </li>
+      <li><strong>Any other MCP client</strong> — same URL and key; the server speaks standard Streamable HTTP.</li>
+    </ol>
+
+    <h2 style="font-size:1.05rem">Then just talk to your assistant</h2>
+    <ul style="padding-left:1.2rem">
+      <li><em>"Sell my Diplomat fountain pen, good condition, 120 euros"</em></li>
+      <li><em>"Find me a used Sony camera under 300 euros on Thingery"</em></li>
+    </ul>
+
+    <h2 style="font-size:1.05rem">Your seller API key</h2>
+    <p style="font-size:.9rem;opacity:.85">Keep it private — it publishes listings as you.</p>
     <div class="key" id="apikey"></div>
-    <p><a href="/chat.html">← Go chat with the Thingery assistant</a></p>
     <p><a href="#" id="logout">Log out</a></p>
   </section>
 
@@ -63,6 +85,22 @@
       $("done").hidden = false;
       $("welcome").textContent = `Logged in as ${seller.name}`;
       $("apikey").textContent = seller.api_key;
+
+      const mcpUrl = `${location.origin}/mcp`;
+      $("mcp-url").textContent = mcpUrl;
+      $("mcp-config").textContent = JSON.stringify(
+        { mcpServers: { thingery: { type: "http", url: mcpUrl, headers: { Authorization: `Bearer ${seller.api_key}` } } } },
+        null,
+        2,
+      );
+      $("copy-config").onclick = () => {
+        navigator.clipboard.writeText($("mcp-config").textContent);
+        $("copy-config").textContent = "Copied ✓";
+      };
+      $("copy-url").onclick = () => {
+        navigator.clipboard.writeText(mcpUrl);
+        $("copy-url").textContent = "Copied ✓";
+      };
     }
 
     $("mode").onclick = (e) => {
