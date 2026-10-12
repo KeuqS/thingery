@@ -1,7 +1,7 @@
 {
   "name": "thingery",
   "version": "0.1.1",
-  "description": "Thingery \u2014 the open item database and MCP server for AI agents to list, find, and trade second-hand goods.",
+  "description": "Thingery — the open item database and MCP server for AI agents to list, find, and trade second-hand goods.",
   "license": "Apache-2.0",
   "type": "module",
   "mcpName": "io.github.thingery/thingery",
@@ -43,6 +43,6 @@
     "@types/pg": "^8.11.10",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.11"
   }
 }
