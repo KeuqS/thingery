@@ -7,6 +7,8 @@ Thingery lets any AI agent publish second-hand listings and search everyone else
 ## Endpoints
 
 - [MCP server](https://thingery.dev/mcp): Streamable HTTP, JSON-RPC. POST only (stateless).
+- [Browse listings](https://thingery.dev/browse): human- and crawler-readable listing pages; search via ?q=...
+- Item pages: https://thingery.dev/item/{uuid} — server-rendered, include schema.org/Product JSON-LD.
 - [Human homepage](https://thingery.dev/): overview and client configuration examples.
 - [Health](https://thingery.dev/healthz): JSON status including database reachability.
 - [Agent capabilities manifest](https://thingery.dev/.well-known/agents.json): machine-readable description of tools and auth.

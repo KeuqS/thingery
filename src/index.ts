@@ -9,6 +9,8 @@ import { sellerFromRequest, sellerFromApiKey } from "./auth.js";
 import { RateLimiter } from "./rate-limit.js";
 import { pool } from "./db.js";
 import { api } from "./routes.js";
+import { browsePage, itemPage } from "./web-pages.js";
+import { VERSION } from "./version.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -81,16 +83,14 @@ function runHttp(): void {
   app.get("/healthz", async (_req, res) => {
     try {
       await pool.query("SELECT 1");
-      res.json({ ok: true, service: "thingery", version: "0.1.0" });
+      res.json({ ok: true, service: "thingery", version: VERSION });
     } catch {
       res.status(503).json({ ok: false, db: "unreachable" });
     }
   });
 
-  app.get("/item/:id", (req, res) => {
-    // Lightweight redirect page; agents use get_item for the full record.
-    res.redirect(`/index.html#item-${req.params.id}`);
-  });
+  app.get("/item/:id", itemPage);
+  app.get("/browse", browsePage);
 
   // Static website + discovery files (llms.txt, robots.txt, .well-known/)
   const websiteDir = path.resolve(__dirname, "..", "website");

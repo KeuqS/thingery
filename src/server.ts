@@ -1,9 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerTools, type ToolContext } from "./tools.js";
+import { VERSION } from "./version.js";
 
 export function buildServer(ctx: ToolContext): McpServer {
   const server = new McpServer(
-    { name: "thingery", version: "0.1.0" },
+    { name: "thingery", version: VERSION },
     {
       instructions:
         "Thingery is the open item database for second-hand goods. " +
