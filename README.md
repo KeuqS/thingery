@@ -93,15 +93,21 @@ own Postgres, spawnable by Claude Desktop and similar clients:
 ### Try it with curl
 
 ```bash
-# List tools
-curl -s http://localhost:3000/mcp -H 'content-type: application/json' \
+# List tools (the Accept header is required by the MCP Streamable HTTP transport)
+curl -s http://localhost:3000/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 
-# Search
-curl -s http://localhost:3000/mcp -H 'content-type: application/json' \
+# Search (finds the seeded Nike Air Max: €85 is within the €100 filter)
+curl -s http://localhost:3000/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call",
-       "params":{"name":"search_items","arguments":{"q":"sneakers size 43","max_price_cents":10000}}}'
+       "params":{"name":"search_items","arguments":{"q":"air max","max_price_cents":10000}}}'
 ```
+
+Responses come back as Server-Sent Events; the JSON-RPC result is on the `data:` line.
 
 ## Configuration
 
