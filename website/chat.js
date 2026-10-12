@@ -12,7 +12,11 @@ function add(role, text) {
 
 fetch("/api/me").then(r => r.json()).then(data => {
   if (data.seller) {
-    $("account-link").innerHTML = `Logged in as ${data.seller.name} · <a href="/login.html">account</a>`;
+    const account = document.createElement("a");
+    account.href = "/login.html";
+    account.textContent = "account";
+    // Display name is untrusted text — build text nodes only, never HTML strings.
+    $("account-link").replaceChildren("Logged in as ", data.seller.name, " · ", account);
   }
 });
 

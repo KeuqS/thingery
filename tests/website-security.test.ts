@@ -5,14 +5,16 @@ import { describe, expect, it } from "vitest";
 const websiteDir = fileURLToPath(new URL("../website", import.meta.url));
 
 /**
- * Regression tests for THI security issue gh#8 (self-XSS in chat.html).
+ * Regression tests for THI security issue gh#8 (self-XSS in chat account link).
  *
- * website/ pages are static HTML with inline scripts and no framework;
- * the only safe way to render server data in them is via text nodes
- * (textContent / createElement / replaceChildren). These tests fail if
- * any page reintroduces an HTML-string sink, and they execute the real
- * chat page script with a hostile display name to prove it renders
- * inert text.
+ * website/ pages are static HTML loaded from external scripts (CSP from
+ * the baseline security headers PR; no inline executable scripts) and no
+ * framework; the only safe way to render server data in them is via text
+ * nodes (textContent / createElement / replaceChildren). These tests fail
+ * if any page or script reintroduces an HTML-string sink — the sink moved
+ * from chat.html to chat.js when the script was externalized, so both
+ * file kinds are scanned — and they execute the real chat.js with a
+ * hostile display name to prove it renders inert text.
  */
 
 // Minimal DOM shim: enough for the chat page's top-level script.
@@ -43,28 +45,50 @@ class FakeElement {
 }
 
 describe("website/ HTML sinks", () => {
-  it("contains no innerHTML/outerHTML/insertAdjacentHTML/document.write usage", () => {
-    const htmlFiles = readdirSync(websiteDir).filter((f) => f.endsWith(".html"));
-    expect(htmlFiles.length).toBeGreaterThan(0);
-    for (const file of htmlFiles) {
-      const html = readFileSync(`${websiteDir}/${file}`, "utf8");
-      // Fails on the pre-fix chat.html account-link sink (gh#8).
+  it("html and js files contain no innerHTML/outerHTML/insertAdjacentHTML/document.write usage", () => {
+    const files = readdirSync(websiteDir).filter(
+      (f) => f.endsWith(".html") || f.endsWith(".js"),
+    );
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const source = readFileSync(`${websiteDir}/${file}`, "utf8");
+      // Fails on the pre-fix account-link sink (gh#8), which lived in
+      // chat.html before the CSP externalization and in chat.js after.
       expect(
-        html,
+        source,
         `${file} must not assign HTML via .innerHTML/.outerHTML, insertAdjacentHTML, or document.write`,
       ).not.toMatch(/\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/);
     }
   });
+
+  it("html files contain no inline executable scripts (CSP requires external scripts)", () => {
+    const htmlFiles = readdirSync(websiteDir).filter((f) => f.endsWith(".html"));
+    expect(htmlFiles.length).toBeGreaterThan(0);
+    for (const file of htmlFiles) {
+      const html = readFileSync(`${websiteDir}/${file}`, "utf8");
+      const scriptTags = html.match(/<script\b[^>]*>/g) ?? [];
+      for (const tag of scriptTags) {
+        const hasSrc = /\bsrc\s*=/.test(tag);
+        const typeMatch = tag.match(/\btype\s*=\s*["']?([^"'\s>]+)/);
+        const type = typeMatch?.[1] ?? "";
+        // Non-JS data blocks (e.g. application/ld+json) are not executed
+        // and are allowed by the CSP; everything else must be external.
+        const isDataBlock = type !== "" && !/javascript|module|^text\/javascript$/i.test(type);
+        const inline = !hasSrc && !isDataBlock;
+        expect(
+          inline,
+          `${file}: inline executable script ${tag} violates the CSP (script-src 'self'); move it to an external file`,
+        ).toBe(false);
+      }
+    }
+  });
 });
 
-describe("chat.html account link (gh#8)", () => {
+describe("chat.js account link (gh#8)", () => {
   const HOSTILE_NAME = 'Mallory <img src=x onerror=alert(1)> ">&<script>';
 
   it("renders the display name as inert text with a working /login.html link", async () => {
-    const html = readFileSync(`${websiteDir}/chat.html`, "utf8");
-    const scriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
-    expect(scriptMatch, "chat.html should contain an inline script").not.toBeNull();
-    const script = scriptMatch![1];
+    const script = readFileSync(`${websiteDir}/chat.js`, "utf8");
 
     const byId = new Map<string, FakeElement>();
     const document = {
