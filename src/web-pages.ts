@@ -17,6 +17,15 @@ const escapeHtml = (value: unknown): string =>
 const money = (cents: number, currency: string): string =>
   `${(cents / 100).toLocaleString("en-IE", { minimumFractionDigits: 2 })} ${currency}`;
 
+/** JSON for embedding in a <script type="application/ld+json"> data block.
+ *  `JSON.stringify` leaves "<" unescaped, so seller-controlled values containing
+ *  "</script>" would break out of the data block into an executable script
+ *  context (stored XSS on public item pages). "\u003c" is valid JSON and
+ *  parses back to "<", so the structured data is unchanged. */
+export function safeJsonLd(value: unknown): string {
+  return JSON.stringify(value).replaceAll("<", "\\u003c");
+}
+
 function page(title: string, description: string, body: string): string {
   return `<!doctype html>
 <html lang="en">
@@ -83,28 +92,13 @@ export async function itemPage(req: Request, res: Response): Promise<void> {
   const uploadHtml = isOwner
     ? `<div class="upload">
         <strong>Add photos</strong> (jpg/png/webp/gif, up to 5 MB each)
-        <form id="upload-form">
+        <form id="upload-form" data-item-id="${escapeHtml(item.id)}">
           <input type="file" id="file" accept="image/jpeg,image/png,image/webp,image/gif" required>
           <button type="submit">Upload</button>
         </form>
         <span class="meta" id="upload-status"></span>
       </div>
-      <script>
-        document.getElementById("upload-form").onsubmit = async (e) => {
-          e.preventDefault();
-          const file = document.getElementById("file").files[0];
-          const status = document.getElementById("upload-status");
-          if (!file) return;
-          status.textContent = "Uploading…";
-          const res = await fetch("/api/items/${escapeHtml(item.id)}/images", {
-            method: "POST",
-            headers: { "content-type": file.type },
-            body: file,
-          });
-          if (res.ok) location.reload();
-          else status.textContent = "Failed: " + ((await res.json()).error || res.status);
-        };
-      </script>`
+      <script src="/upload.js" defer></script>`
     : "";
 
   const jsonLd = {
@@ -139,7 +133,7 @@ export async function itemPage(req: Request, res: Response): Promise<void> {
   <div class="desc">${escapeHtml(item.description) || "<em>No description provided.</em>"}</div>
   <p class="meta">Listed ${new Date(item.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} ·
   To buy, message the seller through the assistant that showed you this listing.</p>
-  <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`;
+  <script type="application/ld+json">${safeJsonLd(jsonLd)}</script>`;
 
   res.send(page(item.title, `${money(item.price_cents, item.currency)} — used, ${item.condition}`, body));
 }

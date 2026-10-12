@@ -11,6 +11,7 @@ import { pool } from "./db.js";
 import { api } from "./routes.js";
 import { browsePage, itemPage } from "./web-pages.js";
 import { uploadsDir } from "./images.js";
+import { securityHeaders } from "./security-headers.js";
 import { VERSION } from "./version.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -42,6 +43,10 @@ function runHttp(): void {
   const anonLimiter = new RateLimiter(30, 60_000);
 
   const app = express();
+
+  // Baseline security headers on every response, before any route (upstream #9).
+  app.disable("x-powered-by");
+  app.use(securityHeaders);
 
   // /mcp must be registered before any body-parsing middleware: the SDK
   // consumes the raw request stream itself.
