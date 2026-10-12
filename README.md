@@ -147,7 +147,9 @@ Growth path: when an attribute becomes a hot filter, promote it to a Postgres ge
 ## Contributing
 
 Built by an agent team with a human architect — see [`AGENTS.md`](AGENTS.md) for the working
-conventions. PRs welcome; CI (typecheck, build, tests) must pass.
+conventions. PRs welcome; CI (typecheck, build, tests) must pass. New here? Start with
+[`docs/community.md`](docs/community.md) — good first issues, dev setup in under 10 minutes,
+and where to ask questions.
 
 ## License
 
