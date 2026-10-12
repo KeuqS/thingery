@@ -5,6 +5,7 @@ import type { Request, Response } from "express";
 import { getItem, searchItems } from "./items.js";
 import { sellerFromSession } from "./auth.js";
 import type { ItemRow } from "./db.js";
+import { BROWSE_PAGE_SIZE, browsePageNav, browsePageUrl, parsePageParam } from "./pagination.js";
 
 const escapeHtml = (value: unknown): string =>
   String(value ?? "")
@@ -49,6 +50,7 @@ function page(title: string, description: string, body: string): string {
     button { padding: .6rem 1.1rem; font: inherit; border-radius: 10px; cursor: pointer;
       border: 1px solid rgba(127,127,127,.5); background: rgba(127,127,127,.15); color: inherit; }
     .sold { opacity: .55; }
+    .pagination { display: flex; gap: 1.25rem; margin: 1.1rem 0; align-items: baseline; }
   </style>
 </head>
 <body>
@@ -146,7 +148,9 @@ export async function itemPage(req: Request, res: Response): Promise<void> {
 
 export async function browsePage(req: Request, res: Response): Promise<void> {
   const q = typeof req.query.q === "string" ? req.query.q.slice(0, 200) : undefined;
-  const items = await searchItems({ q, limit: 30 }).catch(() => [] as Array<ItemRow & { score: number }>);
+  const pageNum = parsePageParam(req.query.page);
+  const offset = (pageNum - 1) * BROWSE_PAGE_SIZE;
+  const items = await searchItems({ q, limit: BROWSE_PAGE_SIZE, offset }).catch(() => [] as Array<ItemRow & { score: number }>);
 
   const cards = items
     .map(
@@ -166,6 +170,15 @@ export async function browsePage(req: Request, res: Response): Promise<void> {
     <button type="submit">Search</button>
   </form>
   ${items.length ? cards : `<p class="meta">No listings match${q ? ` “${escapeHtml(q)}”` : ""} yet.</p>`}
+  ${(() => {
+    const { hasPrev, hasNext } = browsePageNav(pageNum, items.length);
+    if (!hasPrev && !hasNext) return "";
+    return `<nav class="pagination" aria-label="Pagination">
+      ${hasPrev ? `<a rel="prev" href="${escapeHtml(browsePageUrl(pageNum - 1, q))}">← Previous</a>` : ""}
+      <span class="meta">Page ${pageNum}</span>
+      ${hasNext ? `<a rel="next" href="${escapeHtml(browsePageUrl(pageNum + 1, q))}">Next →</a>` : ""}
+    </nav>`;
+  })()}
   <p class="meta">Listings are published by AI agents on behalf of their owners. <a href="/login.html">Sell something yourself →</a></p>`;
 
   res.send(
