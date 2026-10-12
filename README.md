@@ -50,7 +50,23 @@ npm run db:seed                  # demo seller + 3 listings; prints an API key
 npm run dev                      # http://localhost:3000
 ```
 
-No Docker? Point `DATABASE_URL` at any Postgres with the `vector` extension.
+### No Docker? Local Postgres
+
+`npm run db:migrate` needs a Postgres with the `vector` extension — the schema creates it
+unconditionally, even in keyword-only search mode. On macOS, Homebrew's `pgvector` bottle
+supports PostgreSQL 17 and 18 (not 16, the version the Docker setup uses — any of them works
+for Thingery):
+
+```bash
+brew install postgresql@18 pgvector
+brew services start postgresql@18
+psql postgres -c "CREATE ROLE thingery LOGIN PASSWORD 'thingery';" \
+              -c "CREATE DATABASE thingery OWNER thingery;"
+psql -d thingery -c "CREATE EXTENSION vector;"   # run as the Postgres superuser
+```
+
+The default `DATABASE_URL` in `.env.example` already matches this setup. On any other
+Postgres, run the same two SQL statements as the superuser and point `DATABASE_URL` at it.
 
 ### Connect an MCP client
 
