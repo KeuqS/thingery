@@ -33,9 +33,12 @@ The Thingery MCP server must be connected. Listing requires the seller's API key
    listings and propose the median, minus ~10% for slower-moving flaws. State the comparables
    when you propose.
 5. **Publish** — Call `create_listing` with everything above. Prices are **integer cents**
-   (EUR 12.50 → `12500`). Images must be public URLs; if the user has local files, upload via
-   the host's file mechanism or ask for URLs.
-6. **Report** — Give the user the item URL and say what happens next (questions from buyers
+   (EUR 12.50 → `1250`, EUR 125.00 → `12500`).
+6. **Attach photos** — If the user shared photos (local files), attach them with
+   `add_item_image`: pass the bytes base64-encoded in `image_base64` (a data-URL prefix is
+   accepted), set `media_type` (`image/jpeg`, `image/png`, `image/webp`, `image/gif`),
+   max 5 MB per image. Public image URLs in `create_listing`'s `images` also work.
+7. **Report** — Give the user the item URL and say what happens next (questions from buyers
    will arrive; update to `reserved` when a deal is near, `sold` when done).
 
 ## Rules

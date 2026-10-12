@@ -50,7 +50,23 @@ npm run db:seed                  # demo seller + 3 listings; prints an API key
 npm run dev                      # http://localhost:3000
 ```
 
-No Docker? Point `DATABASE_URL` at any Postgres with the `vector` extension.
+### No Docker? Local Postgres
+
+`npm run db:migrate` needs a Postgres with the `vector` extension — the schema creates it
+unconditionally, even in keyword-only search mode. On macOS, Homebrew's `pgvector` bottle
+supports PostgreSQL 17 and 18 (not 16, the version the Docker setup uses — any of them works
+for Thingery):
+
+```bash
+brew install postgresql@18 pgvector
+brew services start postgresql@18
+psql postgres -c "CREATE ROLE thingery LOGIN PASSWORD 'thingery';" \
+              -c "CREATE DATABASE thingery OWNER thingery;"
+psql -d thingery -c "CREATE EXTENSION vector;"   # run as the Postgres superuser
+```
+
+The default `DATABASE_URL` in `.env.example` already matches this setup. On any other
+Postgres, run the same two SQL statements as the superuser and point `DATABASE_URL` at it.
 
 ### Connect an MCP client
 
@@ -93,15 +109,21 @@ own Postgres, spawnable by Claude Desktop and similar clients:
 ### Try it with curl
 
 ```bash
-# List tools
-curl -s http://localhost:3000/mcp -H 'content-type: application/json' \
+# List tools (the Accept header is required by the MCP Streamable HTTP transport)
+curl -s http://localhost:3000/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 
-# Search
-curl -s http://localhost:3000/mcp -H 'content-type: application/json' \
+# Search (finds the seeded Nike Air Max: €85 is within the €100 filter)
+curl -s http://localhost:3000/mcp \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call",
-       "params":{"name":"search_items","arguments":{"q":"sneakers size 43","max_price_cents":10000}}}'
+       "params":{"name":"search_items","arguments":{"q":"air max","max_price_cents":10000}}}'
 ```
+
+Responses come back as Server-Sent Events; the JSON-RPC result is on the `data:` line.
 
 ## Configuration
 
@@ -147,7 +169,9 @@ Growth path: when an attribute becomes a hot filter, promote it to a Postgres ge
 ## Contributing
 
 Built by an agent team with a human architect — see [`AGENTS.md`](AGENTS.md) for the working
-conventions. PRs welcome; CI (typecheck, build, tests) must pass.
+conventions. PRs welcome; CI (typecheck, build, tests) must pass. New here? Start with
+[`docs/community.md`](docs/community.md) — good first issues, dev setup in under 10 minutes,
+and where to ask questions.
 
 ## License
 
