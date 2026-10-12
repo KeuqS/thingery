@@ -44,6 +44,11 @@ describe.skipIf(!available)("db schema", () => {
   });
 
   it("applies the schema to a fresh database without error", async () => {
+    // Hermetic: drop the OAuth tables so every run exercises a true fresh apply
+    // (the file uses CREATE TABLE IF NOT EXISTS, which would otherwise no-op).
+    await client.query(
+      `DROP TABLE IF EXISTS oauth_codes, oauth_tokens, oauth_grants, oauth_clients CASCADE`,
+    );
     await client.query(readFileSync(schemaPath, "utf8"));
   });
 
