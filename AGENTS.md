@@ -34,10 +34,11 @@ human founder as architect and final reviewer. Every agent working here follows 
 | `db/schema.sql` | The Item Graph schema — **protected**, see rule 2 |
 | `src/tools.ts` | MCP tool surface — **protected**, see rule 2 |
 | `src/items.ts` | Query + hybrid search logic |
-| `src/auth.ts`, `src/rate-limit.ts` | Security-adjacent — **protected** |
+| `src/auth.ts`, `src/rate-limit.ts`, `src/routes.ts` | Security-adjacent — **protected** |
+| `src/chat.ts` | Server-side chat agent (LLM tool-loop) for the /chat page |
 | `scripts/` | Migrations and seeding |
 | `skills/` | Agent skills (SKILL.md) for sellers and buyers |
-| `website/` | Landing page + machine discovery files (llms.txt, agents.json) |
+| `website/` | Landing, login and chat pages + machine discovery files (llms.txt, agents.json) |
 | `tests/` | Vitest suites |
 
 ## Canonical language

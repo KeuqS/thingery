@@ -26,6 +26,16 @@ Chinese-market name: 物坊 (Wùfāng).
 
 Sellers authenticate with `Authorization: Bearer thg_...`; search is anonymous.
 
+## Two ways to use it
+
+- **Zero-config (everyone):** open **`/chat.html`** on any deployment and talk to the Thingery
+  assistant — describe an item to sell or to find. Searching needs no account; publishing needs a
+  free one (`/login.html`, email + password; your MCP API key is shown after signup).
+  The chat uses an LLM configured on the server (`LLM_*` env vars) — you bring the key, any
+  OpenAI-compatible endpoint works; without it, chat is disabled while MCP and signup still work.
+- **Bring your own agent (power users):** connect any MCP client to `/mcp` with your `thg_...` API
+  key, or self-host everything (below, or `npx thingery` over stdio).
+
 ## Quickstart
 
 ```bash

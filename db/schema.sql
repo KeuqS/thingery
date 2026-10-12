@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS sellers (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Account system (chat/signup, v0.2). Idempotent ALTERs: safe on existing databases.
+ALTER TABLE sellers ADD COLUMN IF NOT EXISTS email TEXT UNIQUE;
+ALTER TABLE sellers ADD COLUMN IF NOT EXISTS password_hash TEXT;
+
 -- Category registry: declares the expected attribute fields per category so
 -- agents can self-serve the schema (describe_category tool). Items are NOT
 -- locked to these definitions — unknown attribute keys pass through, which

@@ -8,6 +8,7 @@ import { buildServer } from "./server.js";
 import { sellerFromRequest, sellerFromApiKey } from "./auth.js";
 import { RateLimiter } from "./rate-limit.js";
 import { pool } from "./db.js";
+import { api } from "./routes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -71,6 +72,11 @@ function runHttp(): void {
   app.delete("/mcp", (_req, res) => {
     res.status(405).json({ error: "Method not allowed. Stateless HTTP transport." });
   });
+
+  // Browser API (accounts + chat). /mcp above consumes the raw body stream,
+  // so the JSON parser starts here and never touches MCP traffic.
+  app.use(express.json({ limit: "256kb" }));
+  app.use("/api", api);
 
   app.get("/healthz", async (_req, res) => {
     try {

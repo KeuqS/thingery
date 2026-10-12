@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Account — Thingery</title>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 2rem 1.5rem; max-width: 26rem; margin-inline: auto;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.6;
+    }
+    h1 { font-size: 1.5rem; }
+    input { width: 100%; padding: .6rem .7rem; margin: .25rem 0 1rem; font: inherit;
+      border-radius: 8px; border: 1px solid rgba(127,127,127,.5); background: transparent; color: inherit; }
+    button { padding: .6rem 1.2rem; font: inherit; border-radius: 8px; cursor: pointer;
+      border: 1px solid rgba(127,127,127,.5); background: rgba(127,127,127,.15); color: inherit; }
+    button:hover { background: rgba(127,127,127,.3); }
+    .toggle { margin-top: 1.5rem; font-size: .95rem; opacity: .85; }
+    .error { color: #e5484d; min-height: 1.4em; margin-bottom: .5rem; }
+    a { color: inherit; }
+    .key { font-family: ui-monospace, Menlo, monospace; font-size: .9em; word-break: break-all;
+      background: rgba(127,127,127,.12); padding: .6rem .8rem; border-radius: 8px; margin: .5rem 0 1rem; }
+  </style>
+</head>
+<body>
+  <h1><a href="/">Thingery</a> — account</h1>
+
+  <section id="auth">
+    <h2 id="form-title">Create your account</h2>
+    <p class="error" id="error"></p>
+    <form id="form">
+      <label>Email <input type="email" id="email" autocomplete="email" required></label>
+      <label>Password <small>(min 8 chars)</small> <input type="password" id="password" autocomplete="new-password" required></label>
+      <label>Name <small>(optional)</small> <input type="text" id="name" autocomplete="nickname"></label>
+      <button type="submit" id="submit">Sign up</button>
+    </form>
+    <p class="toggle"><a href="#" id="mode">I already have an account — log in</a></p>
+  </section>
+
+  <section id="done" hidden>
+    <h2>You're in</h2>
+    <p id="welcome"></p>
+    <p>Your seller API key (for MCP clients — keep it private):</p>
+    <div class="key" id="apikey"></div>
+    <p><a href="/chat.html">← Go chat with the Thingery assistant</a></p>
+    <p><a href="#" id="logout">Log out</a></p>
+  </section>
+
+  <script>
+    let mode = "signup";
+    const $ = (id) => document.getElementById(id);
+
+    async function checkSession() {
+      const res = await fetch("/api/me");
+      const data = await res.json();
+      if (data.seller) showDone(data.seller);
+    }
+
+    function showDone(seller) {
+      $("auth").hidden = true;
+      $("done").hidden = false;
+      $("welcome").textContent = `Logged in as ${seller.name}`;
+      $("apikey").textContent = seller.api_key;
+    }
+
+    $("mode").onclick = (e) => {
+      e.preventDefault();
+      mode = mode === "signup" ? "login" : "signup";
+      $("form-title").textContent = mode === "signup" ? "Create your account" : "Log in";
+      $("submit").textContent = mode === "signup" ? "Sign up" : "Log in";
+      $("mode").textContent = mode === "signup"
+        ? "I already have an account — log in"
+        : "I need to create an account";
+      $("name").parentElement.style.display = mode === "signup" ? "" : "none";
+      $("error").textContent = "";
+    };
+
+    $("form").onsubmit = async (e) => {
+      e.preventDefault();
+      $("error").textContent = "";
+      const body = { email: $("email").value.trim(), password: $("password").value };
+      if (mode === "signup" && $("name").value.trim()) body.name = $("name").value.trim();
+      const res = await fetch(`/api/${mode}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) { $("error").textContent = data.error || "Something went wrong."; return; }
+      showDone(data.seller);
+    };
+
+    $("logout").onclick = async (e) => {
+      e.preventDefault();
+      await fetch("/api/logout", { method: "POST" });
+      location.reload();
+    };
+
+    checkSession();
+  </script>
+</body>
+</html>
