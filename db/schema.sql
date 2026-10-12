@@ -117,3 +117,54 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS items_set_updated_at ON items;
 CREATE TRIGGER items_set_updated_at BEFORE UPDATE ON items
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- MCP OAuth one-click onboarding (spec THI-11 rev 2, §3).
+-- Dynamic clients (RFC 7591), grants, hashed tokens, hashed authorization codes.
+-- All additive and idempotent (expand-only migration); no columns are added to
+-- sellers — OAuth state hangs off seller_id FKs and cascades on seller delete.
+CREATE TABLE IF NOT EXISTS oauth_clients (
+  client_id     TEXT PRIMARY KEY,            -- 'thgc_...' random; public identifier
+  client_name   TEXT,                        -- from DCR, e.g. 'Claude Desktop'; data, not HTML
+  client_uri    TEXT,                        -- from DCR; stored as data, never rendered as a link
+  redirect_uris TEXT[] NOT NULL,             -- exact-match list; loopback http allowed
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  authorized_at TIMESTAMPTZ                  -- set on first code issuance; NULL + old → sweep
+);
+
+CREATE TABLE IF NOT EXISTS oauth_grants (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  seller_id   UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+  client_id   TEXT NOT NULL REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+  scope       TEXT NOT NULL DEFAULT 'mcp',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  revoked_at  TIMESTAMPTZ                    -- family-revocation flag; one row per "Allow" click
+);
+CREATE INDEX IF NOT EXISTS oauth_grants_seller_idx ON oauth_grants (seller_id) WHERE revoked_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  grant_id     UUID NOT NULL REFERENCES oauth_grants(id) ON DELETE CASCADE,
+  kind         TEXT NOT NULL CHECK (kind IN ('access','refresh')),
+  token_hash   TEXT UNIQUE NOT NULL,         -- sha256 hex of the full 'thgo_...'/'thgr_...' string
+  expires_at   TIMESTAMPTZ NOT NULL,
+  revoked_at   TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_used_at TIMESTAMPTZ                   -- throttled update (>= 10 min granularity)
+);
+CREATE INDEX IF NOT EXISTS oauth_tokens_grant_idx ON oauth_tokens (grant_id);
+CREATE INDEX IF NOT EXISTS oauth_tokens_sweep_idx ON oauth_tokens (kind, expires_at);
+
+CREATE TABLE IF NOT EXISTS oauth_codes (
+  code_hash       TEXT PRIMARY KEY,          -- sha256 hex of the full 'thga_...' string
+  grant_id        UUID NOT NULL REFERENCES oauth_grants(id) ON DELETE CASCADE,
+  client_id       TEXT NOT NULL REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+  seller_id       UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+  redirect_uri    TEXT NOT NULL,              -- bound at issuance (normalized form)
+  code_challenge  TEXT NOT NULL,              -- PKCE S256 digest, bound at issuance
+  resource        TEXT,                        -- RFC 8707 audience, bound at issuance when sent
+  scope           TEXT NOT NULL DEFAULT 'mcp',
+  expires_at      TIMESTAMPTZ NOT NULL,       -- now() + 60s
+  consumed_at     TIMESTAMPTZ,                -- single-use flag; replay detection
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);

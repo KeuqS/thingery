@@ -6,6 +6,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { buildServer } from "./server.js";
 import { sellerFromRequest, sellerFromApiKey } from "./auth.js";
+import { mountOauthRoutes } from "./oauth.js";
 import { RateLimiter } from "./rate-limit.js";
 import { pool } from "./db.js";
 import { api } from "./routes.js";
@@ -48,6 +49,15 @@ function runHttp(): void {
   app.disable("x-powered-by");
   app.use(securityHeaders);
 
+  // F1 (spec THI-11 §4.1, hard prerequisite for every per-IP limit): Caddy is
+  // the single trusted proxy hop. Without this, req.ip is always the Caddy
+  // container address and all per-IP buckets collapse into global ones.
+  // Side effects (intended): the anon /mcp and /api/signup buckets become
+  // truly per-IP. Self-hosters exposing the app directly are unaffected —
+  // req.ip stays the socket peer. Client-injected XFF entries are ignored
+  // (only the trusted hop's appended entry counts); regression-tested.
+  app.set("trust proxy", 1);
+
   // /mcp must be registered before any body-parsing middleware: the SDK
   // consumes the raw request stream itself.
   app.post("/mcp", async (req, res) => {
@@ -84,6 +94,7 @@ function runHttp(): void {
   // Browser API (accounts + chat). /mcp above consumes the raw body stream,
   // so the JSON parser starts here and never touches MCP traffic.
   app.use(express.json({ limit: "256kb" }));
+  mountOauthRoutes(app); // OAuth discovery + DCR (spec THI-11 §4.1) — after the JSON parser, like /api
   app.use("/api", api);
 
   app.get("/healthz", async (_req, res) => {

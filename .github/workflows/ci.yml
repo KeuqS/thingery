@@ -8,6 +8,22 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: thingery
+          POSTGRES_PASSWORD: thingery
+          POSTGRES_DB: thingery_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U thingery"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://thingery:thingery@localhost:5432/thingery_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
