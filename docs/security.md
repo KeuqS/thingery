@@ -430,9 +430,9 @@ anyone can run it anytime.
 
 - **Suspected key/secret leak:** rotate the secret first (VPS `.env` / GitHub Secrets /
   provider console), then investigate, then disclose per the disclosure policy below.
-- **Spam/illegal content:** delete via the H4 takedown path (or manual SQL until it
-  exists: `UPDATE items SET status='deleted' WHERE ...`), disable the seller's key,
-  preserve a DB snapshot for evidence before deleting anything.
+- **Spam/illegal content:** follow [`docs/moderation-runbook.md`](moderation-runbook.md) —
+  preserve a DB snapshot for evidence first, then soft-delete the listing and disable the
+  seller's key (all procedures tested; see the runbook).
 - **Compromise of the VPS:** assume DB + backups + `.env` are gone; rotate everything
   (DB password, session secret, provider keys, deploy key, npm token), redeploy from a
   clean checkout, and diff `main` against the last known-good tag.
