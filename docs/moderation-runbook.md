@@ -68,6 +68,10 @@ Two checks that matter (both burned someone already):
 - **A backup that was never restored is not a backup.** Spot-restore it into a scratch
   container using the [monthly restore test](deploy-vps.md#restore-test-monthly-5-minutes)
   before you rely on it for a dispute.
+- **Handle the snapshot like the secret it is.** The dump contains every seller API key
+  and password hash in plaintext (until [H2](security.md#h2--secrets-at-rest-hash-api-keys-encrypt-backups-wire-prod-secrets-properly)
+  ships encrypted backups): `chmod 600` the file, and delete it or move it to encrypted
+  storage once the dispute closes. Do not leave extra plaintext copies lying around.
 
 ## 2. Take down a listing
 
@@ -104,51 +108,73 @@ same transaction once per item id — no `WHERE title ILIKE` shortcuts on the `U
 
 ## 3. Disable a seller without deleting their data
 
-Replacing the seller's API key with an unguessable new value locks the seller (and any
-agent using their `thg_...` key) out immediately — `my_listings` and all write tools
-return `unauthorized` on the next request. Their account, listings and history stay in
-place: nothing is deleted, and their existing listings remain searchable. There is no
-key-recovery flow (that is [H2](security.md#h2--secrets-at-rest-hash-api-keys-encrypt-backups-wire-prod-secrets-properly)
-work), so once rotated, the old key is dead for good.
+Two credentials can bring a seller back: their `thg_...` API key, and — for sellers who
+signed up with email + password — their account login, which also **displays the current
+API key** on the account page (`GET /api/me`). **Rotating the key alone only disables
+key-only sellers**: an account holder simply logs in again and reads the fresh key, so
+for them the password must be scrambled in the same transaction. The single `UPDATE`
+below does both and is safe for key-only sellers too (a scrambled password on a seller
+with no email can never match anything).
 
-First find the seller and copy their `id`:
+What this disables: the seller's API key **and** their password, immediately — no data
+is deleted and existing listings stay searchable (take them down individually with
+step 2 if needed). What it does **not** do: kill an already-active browser session —
+see [Residual risk: live sessions](#residual-risk-live-sessions) below.
+
+First find the seller and copy their `id` (keys are masked on purpose — never print
+full `thg_...` values to a terminal that may be shared, screenshotted, or in scrollback):
 
 ```sql
-SELECT id, display_name, email, api_key FROM sellers
+SELECT id, display_name, email,
+       password_hash IS NOT NULL AS has_account,
+       left(api_key, 12) || '…' AS api_key_prefix
+  FROM sellers
  WHERE display_name ILIKE '%<name fragment>%' OR email ILIKE '%<email fragment>%';
 ```
 
-Then rotate the key (the expression below uses only core Postgres functions — two random
-UUIDs concatenated — so it works on any Postgres 13+ without extra extensions):
+Then disable their credentials (core Postgres functions only — works on any Postgres 13+;
+the `disabled:` password value fails `verifyPassword` for every password, so login is
+denied):
 
 ```sql
 BEGIN;
-SELECT id, display_name FROM sellers WHERE id = '<seller-uuid>';
+SELECT id, display_name, password_hash IS NOT NULL AS has_account
+  FROM sellers WHERE id = '<seller-uuid>';
 UPDATE sellers
    SET api_key = 'thg_rotated_' || replace(gen_random_uuid()::text, '-', '')
-                      || replace(gen_random_uuid()::text, '-', '')
+                      || replace(gen_random_uuid()::text, '-', ''),
+       password_hash = 'disabled:' || replace(gen_random_uuid()::text, '-', '')
  WHERE id = '<seller-uuid>';
-SELECT id, display_name, api_key FROM sellers WHERE id = '<seller-uuid>';
+SELECT id, display_name,
+       api_key LIKE 'thg_rotated_%' AS key_rotated,
+       password_hash LIKE 'disabled:%' AS password_disabled
+  FROM sellers WHERE id = '<seller-uuid>';
 COMMIT;
 ```
 
-The new `thg_rotated_...` value is random and known to no one (including you — and you do
-not need it). If your database has the `pgcrypto` extension, this shorter form is
-equivalent; note that `gen_random_bytes()` is **pgcrypto-only**, it is not a core function
-even on Postgres 18, and fails loudly without the extension:
+`key_rotated | t` and `password_disabled | t` mean success. The new `thg_rotated_...`
+value is random and known to no one (including you — and you do not need it). There is
+no key-recovery flow (that is [H2](security.md#h2--secrets-at-rest-hash-api-keys-encrypt-backups-wire-prod-secrets-properly)
+work); for a legitimate seller locked out by mistake, the answer is a new account, not
+an un-rotation.
 
-```sql
--- prerequisite, once, as the database superuser:
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+If your database has the `pgcrypto` extension, `encode(gen_random_bytes(24), 'hex')` is
+an equivalent source of randomness for the key — but remember `gen_random_bytes()` is
+**pgcrypto-only**, not a core function even on Postgres 18 — and keep the
+`password_hash` scramble exactly as above.
 
-UPDATE sellers
-   SET api_key = 'thg_rotated_' || encode(gen_random_bytes(24), 'hex')
- WHERE id = '<seller-uuid>';
-```
+### Residual risk: live sessions
 
-Verify: `search_items` still returns their listings, and an MCP call with the old key
-returns `unauthorized`. If you also need the listings gone, do step 2 as well — rotation
-alone leaves them up.
+Sessions are stateless HMAC cookies carrying only the seller id, with a 30-day
+lifetime and no per-seller revocation (that is H4/H2 work). A seller with an
+**already logged-in** browser keeps write access after this procedure — image upload
+and chat — and `/api/me` will show them the *new* rotated key. If a live session must
+die now, the only lever today is rotating `SESSION_SECRET` in the VPS `.env` and
+restarting the app, which logs **everyone** out — a leadership call during an
+incident, not a default.
+
+Verify after the change: an MCP call with the old key returns `unauthorized`, a login
+attempt with the old password fails, and `search_items` still returns their listings.
 
 ## What never to do
 
@@ -162,12 +188,22 @@ alone leaves them up.
 
 ## Tested how
 
-Every procedure above was executed against a clean local environment on 2026-10-12:
-fresh database, `npm run db:migrate` + `npm run db:seed` (3 items, 1 demo seller), then
-the full sequence — evidence snapshot + restore check, takedown transaction, key
-rotation — with MCP verification before/after via `curl` against `/mcp`
-(`search_items` 3 → 2, `get_item` → `not_found`, `my_listings` with the old key →
-`unauthorized`). The transcript is in the PR that added this file.
+Every procedure above was executed against a clean local environment on 2026-10-12 —
+twice: once when the runbook was written, and again after the security review, which
+added the password scramble, key masking, and the live-session caveat to §3.
+
+Environment: fresh database, `npm run db:migrate` + `npm run db:seed` (3 items, 1
+demo seller), plus one account seller created through `POST /api/signup` so the
+account-holder path was exercised for real. Sequence and results:
+
+- evidence snapshot + restore check into a scratch database (1 seller / 3 items);
+- takedown transaction: `search_items` 3 → 2, `get_item` → `not_found`, row preserved;
+- disable procedure: old password login → 401, old MCP key → `unauthorized`,
+  listings count unchanged, and a pre-existing browser session still valid and shown
+  the *new* rotated key via `/api/me` — the residual risk documented above, observed
+  exactly as described.
+
+The transcripts are in the PR that added this file.
 
 Re-test after any schema change to `items.status`, `sellers.api_key`, or the auth lookup
 in `src/auth.ts` (`docs drift` rule: this runbook must describe the code that is actually
